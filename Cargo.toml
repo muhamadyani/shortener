@@ -1,0 +1,38 @@
+[package]
+name = "shortener"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Web Framework
+axum = "0.8.8"
+tokio = { version = "1", features = ["full"] }
+
+# Database (Embedded B-Tree)
+redb = "3.1.0"
+
+# Data Handling (JSON & Serialization)
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Utilities
+rand = "0.9.2"
+chrono = { version = "0.4", features = ["serde"] }
+dotenvy = "0.15.7"
+
+tracing = "0.1" 
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tower-http = { version = "0.6.8", features = ["trace"] }
+
+[dev-dependencies]
+# Testing utilities
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+hyper = "1.5"
+tempfile = "3.14"
+
+# Optimasi untuk release build (agar binary kecil dan cepat)
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
