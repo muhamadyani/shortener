@@ -2,8 +2,10 @@ use axum::{
     extract::Request,
     http::{HeaderMap, StatusCode},
     middleware::Next,
-    response::Response,
+    response::{IntoResponse, Response},
+    Json,
 };
+use serde_json::json;
 use std::env;
 
 /// Middleware to check for Authorization header
@@ -17,7 +19,7 @@ pub async fn auth_middleware(
     headers: HeaderMap,
     request: Request,
     next: Next,
-) -> Result<Response, StatusCode> {
+) -> Result<Response, Response> {
     // Check if AUTHORIZATION env var is set
     // We use var instead of var_os to ensure it's a valid unicode string
     if let Ok(auth_secret) = env::var("AUTHORIZATION") {
@@ -25,18 +27,28 @@ pub async fn auth_middleware(
         // The requirement says "jika di env di set authorization key maka perlu di cek"
         // usually implies if it's present.
         if !auth_secret.is_empty() {
+            let unauthorized_response = || {
+                (
+                    StatusCode::UNAUTHORIZED,
+                    Json(json!({
+                        "error": "Unauthorized",
+                        "message": "Invalid or missing authorization header"
+                    })),
+                ).into_response()
+            };
+
              match headers.get("Authorization") {
                 Some(header_value) => {
                     match header_value.to_str() {
                         Ok(header_str) => {
                             if header_str != auth_secret {
-                                return Err(StatusCode::UNAUTHORIZED);
+                                return Err(unauthorized_response());
                             }
                         }
-                        Err(_) => return Err(StatusCode::UNAUTHORIZED),
+                        Err(_) => return Err(unauthorized_response()),
                     }
                 }
-                None => return Err(StatusCode::UNAUTHORIZED),
+                None => return Err(unauthorized_response()),
             }
         }
     }

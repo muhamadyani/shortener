@@ -2,7 +2,8 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use serde_json::json;
+use http_body_util::BodyExt;
+use serde_json::{json, Value};
 use std::env;
 use std::sync::{Arc, Mutex};
 use tempfile::NamedTempFile;
@@ -22,6 +23,17 @@ fn setup_test_app() -> (axum::Router, NamedTempFile) {
         db: Arc::new(db),
     };
     (create_app(state), temp_db)
+}
+
+/// Helper function to parse response body as JSON
+async fn response_json(body: Body) -> Value {
+    let bytes = body
+        .collect()
+        .await
+        .expect("Failed to read response body")
+        .to_bytes();
+    
+    serde_json::from_slice(&bytes).expect("Failed to parse JSON")
 }
 
 #[tokio::test]
@@ -79,6 +91,10 @@ async fn test_auth_middleware_enabled_invalid_token() {
     
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     
+    let body = response_json(response.into_body()).await;
+    assert_eq!(body["error"], "Unauthorized");
+    assert_eq!(body["message"], "Invalid or missing authorization header");
+    
     env::remove_var("AUTHORIZATION");
 }
 
@@ -106,6 +122,10 @@ async fn test_auth_middleware_enabled_no_token() {
         .unwrap();
     
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    
+    let body = response_json(response.into_body()).await;
+    assert_eq!(body["error"], "Unauthorized");
+    assert_eq!(body["message"], "Invalid or missing authorization header");
     
     env::remove_var("AUTHORIZATION");
 }
